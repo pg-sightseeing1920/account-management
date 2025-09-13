@@ -1,0 +1,28 @@
+FROM golang:1.25-alpine
+
+# 必要なパッケージをインストール
+RUN apk add --no-cache git
+
+# 作業ディレクトリを設定
+WORKDIR /app
+
+# Airをインストール（ホットリロード用）
+RUN go install github.com/air-verse/air@latest
+
+# go.modとgo.sumをコピー
+COPY go.mod go.sum ./
+
+# 依存関係をダウンロード
+RUN go mod download
+
+# ソースコードをコピー
+COPY . .
+
+# 依存の取りこぼしを回避
+RUN go mod tidy
+
+# ポートを公開
+EXPOSE 8080
+
+# Airでホットリロード起動
+CMD ["air", "-c", "air.toml"]
