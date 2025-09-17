@@ -1,0 +1,13 @@
+# Air / Go build artifacts
+tmp/
+build/
+bin/
+build-errors.log
+
+# Go test cache / coverage
+*.out
+*.test
+
+# OS/IDE
+.DS_Store
+.vscode/
