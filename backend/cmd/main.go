@@ -1,12 +1,16 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"os"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+
+	"account-management/backend/internal/repository"
+	"account-management/backend/pkg/config"
 )
 
 func main() {
@@ -14,6 +18,16 @@ func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env file found")
 	}
+
+	// DB接続
+	dbCfg := config.LoadDB()
+	db, err := repository.InitDB(dbCfg.DSN())
+	if err != nil {
+		log.Fatalf("failed to connect DB %v", err)
+	}
+	defer func(db *sql.DB) {
+		_ = db.Close()
+	}(db)
 
 	// Ginルーターを設定
 	r := gin.Default()
@@ -26,13 +40,23 @@ func main() {
 	config.AllowCredentials = true
 	r.Use(cors.New(config))
 
-	// ヘルスチェックエンドポイント
+	// ヘルスチェック（アプリ / DB）
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"status":  "ok",
 			"message": "Account Management API is running",
 		})
 	})
+
+	r.GET("/health/db", func(c *gin.Context){
+		if err := db.Ping(); err != nil {
+			c.JSON(500, gin.H{"db": "down", "error": err.Error()})
+			return
+		}
+		c.JSON(200, gin.H{"db": "up"})
+	})
+
+
 
 	// 基本的なAPIエンドポイント
 	api := r.Group("/api/v1")
@@ -43,6 +67,11 @@ func main() {
 			})
 		})
 	}
+
+	// デバッグ用：起動時に全ルートをログ出力
+    for _, rt := range r.Routes() {
+        log.Printf("[ROUTE] %s %s", rt.Method, rt.Path)
+    }
 
 	// サーバー起動
 	port := os.Getenv("PORT")
